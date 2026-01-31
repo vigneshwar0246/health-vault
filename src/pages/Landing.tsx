@@ -8,7 +8,7 @@ import {
   Users,
   Shield,
   Download,
-  AlertTriangle,
+
   ChevronRight,
 } from 'lucide-react';
 
@@ -28,11 +28,7 @@ const features = [
     title: 'Medical Reports',
     description: 'Upload and organize lab results, prescriptions, imaging reports, and doctor notes.',
   },
-  {
-    icon: AlertTriangle,
-    title: 'Emergency Access',
-    description: 'Generate downloadable emergency cards with critical health info and QR codes.',
-  },
+
   {
     icon: Shield,
     title: 'Privacy First',
@@ -78,7 +74,7 @@ export default function Landing() {
             <span className="text-primary"> Organized & Secure</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Track vitals, store medical records, manage appointments, and access emergency information for yourself and your loved ones—all in one place.
+            Track vitals, store medical records, and manage appointments for yourself and your loved ones—all in one place.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild className="gap-2">

@@ -107,7 +107,7 @@ export const reportsAPI = {
   createReport: (report: Omit<MedicalReport, 'id' | 'createdAt'>) => apiRequest('/reports', {
     method: 'POST',
     body: JSON.stringify(report),
-  }),  uploadReportFile: async (memberId: string, file: File, meta?: { title?: string; date?: string; type?: string; notes?: string }) => {
+  }), uploadReportFile: async (memberId: string, file: File, meta?: { title?: string; date?: string; type?: string; notes?: string }) => {
     const url = `${API_BASE_URL}/reports/upload`;
     const form = new FormData();
     form.append('file', file);
@@ -181,6 +181,38 @@ export const reportsAPI = {
 
     const data = await res.json();
     if (!res.ok) throw new ApiError(data.error || 'Translation failed', res.status);
+    return data;
+  },
+
+  // Chat with LLM (Gemini / Vertex)
+  chat: async (prompt: string, options?: { temperature?: number; maxOutputTokens?: number; file?: File }) => {
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+
+    let body: any;
+    if (options?.file) {
+      const form = new FormData();
+      form.append('prompt', prompt);
+      form.append('file', options.file);
+      if (options.temperature) form.append('temperature', String(options.temperature));
+      if (options.maxOutputTokens) form.append('maxOutputTokens', String(options.maxOutputTokens));
+      body = form;
+      // No Content-Type header for FormData, browser will set it with boundary
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({ prompt, ...options });
+    }
+
+    const res = await fetch(`${API_BASE_URL}/llm/chat`, {
+      method: 'POST',
+      headers,
+      body
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new ApiError(data.error || 'LLM chat failed', res.status);
     return data;
   },
 

@@ -7,7 +7,7 @@ import {
   Stethoscope,
   Calendar,
   Bell,
-  AlertTriangle,
+
   Download,
   Settings,
   Activity,
@@ -15,6 +15,7 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +28,8 @@ const navItems = [
   { path: '/doctor-notes', label: 'Doctor Notes', icon: Stethoscope },
   { path: '/appointments', label: 'Appointments', icon: Calendar },
   { path: '/reminders', label: 'Reminders & Symptoms', icon: Bell },
-  { path: '/emergency', label: 'Emergency', icon: AlertTriangle },
+
+  { path: '/chatbot', label: 'Chatbot', icon: MessageSquare },
   { path: '/export', label: 'Export Data', icon: Download },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/activity', label: 'Activity Logs', icon: Activity },
@@ -66,7 +68,7 @@ export function AppSidebar({ onSettingsOpen, onExportOpen }: { onSettingsOpen: (
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
-            
+
             if (item.path === '/settings') {
               return (
                 <li key={item.path}>
@@ -86,7 +88,7 @@ export function AppSidebar({ onSettingsOpen, onExportOpen }: { onSettingsOpen: (
                 </li>
               );
             }
-            
+
             if (item.path === '/export') {
               return (
                 <li key={item.path}>
@@ -106,7 +108,7 @@ export function AppSidebar({ onSettingsOpen, onExportOpen }: { onSettingsOpen: (
                 </li>
               );
             }
-            
+
             return (
               <li key={item.path}>
                 <Link
@@ -120,7 +122,7 @@ export function AppSidebar({ onSettingsOpen, onExportOpen }: { onSettingsOpen: (
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon className={cn('h-5 w-5 shrink-0', item.path === '/emergency' && 'text-destructive')} />
+                  <Icon className={cn('h-5 w-5 shrink-0')} />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               </li>
@@ -146,7 +148,7 @@ export function AppSidebar({ onSettingsOpen, onExportOpen }: { onSettingsOpen: (
             </>
           )}
         </Button>
-        
+
         <Button
           variant="ghost"
           size="sm"

@@ -7,7 +7,7 @@ import {
   Activity,
   FileText,
   Users,
-  AlertTriangle,
+
   Download,
   HelpCircle,
   ChevronLeft,
@@ -38,12 +38,7 @@ const howItWorks = [
     title: 'Store Medical Records',
     description: 'Upload reports, prescriptions, and doctor notes. Everything organized by date.',
   },
-  {
-    step: 4,
-    icon: AlertTriangle,
-    title: 'Emergency Ready',
-    description: 'Generate emergency cards with critical health info that can be shared or printed.',
-  },
+
 ];
 
 const faqs = [
@@ -67,10 +62,7 @@ const faqs = [
     question: 'How do I add family members?',
     answer: 'Go to Profile & Family from the dashboard. Click "Add Family Member" and fill in their details. You can then switch between family profiles to track health data separately for each person.',
   },
-  {
-    question: 'What should I do in an emergency?',
-    answer: 'Use the Emergency feature to quickly access or share critical health information. You can generate a downloadable emergency card with blood type, allergies, medications, and emergency contacts.',
-  },
+
 ];
 
 export default function About() {

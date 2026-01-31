@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const path = require('path');
 
-// Middleware
+// Middleware - touch to trigger restart
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -30,6 +30,12 @@ app.use('/api/symptoms', require('./routes/symptoms'));
 app.use('/api/doctor-notes', require('./routes/doctorNotes'));
 // Translate (generic)
 app.use('/api/translate', require('./routes/translate'));
+
+// LLM endpoints (Gemini / Vertex) for chat and LLM operations
+app.use('/api/llm', require('./routes/llm'));
+
+// Export endpoints (merge PDFs, generate combined exports)
+app.use('/api/export', require('./routes/export'));
 
 // Internal endpoints for diagnostics (no secrets are leaked)
 app.use('/api/internal', require('./routes/internal'));

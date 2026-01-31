@@ -12,10 +12,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { FamilyMember, VitalReading, MedicalReport, DoctorNote, Medication, Symptom } from '@/types/health';
 import { storage } from '@/lib/storage';
+import { API_BASE_URL } from '@/lib/api';
 
 interface ExportOptions {
   includeVitals: boolean;
   includeReports: boolean;
+  includeReportFiles?: boolean; // Embed original report PDFs when exporting
   includeNotes: boolean;
   includeMedications: boolean;
   includeSymptoms: boolean;
@@ -35,6 +37,7 @@ const Export: React.FC = () => {
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     includeVitals: true,
     includeReports: true,
+    includeReportFiles: false,
     includeNotes: true,
     includeMedications: true,
     includeSymptoms: true,
@@ -61,307 +64,327 @@ const Export: React.FC = () => {
     }));
   };
 
+  /* New PDF Generation Logic matching the "Evergreen" style */
   const generatePDF = async () => {
     setIsExporting(true);
     try {
+      // If user wants to include original report PDFs, call backend to merge them server-side.
+      if (exportOptions.includeReports && exportOptions.includeReportFiles) {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch(`${API_BASE_URL}/export/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ memberId: selectedMemberId === 'all' ? null : selectedMemberId, options: exportOptions })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Export generation failed');
+
+        // Download generated file
+        const base = (window as any).__API_BASE_URL || API_BASE_URL.replace(/\/api$/, '');
+        const url = data.fileUrl.startsWith('http') ? data.fileUrl : `${base}${data.fileUrl}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = url.split('/').pop() || 'health-export.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        toast.success('Export completed successfully!');
+        return;
+      }
+
+      // Initialize PDF (Client-side Fallback)
       const pdf = new jsPDF('p', 'mm', 'a4');
-      let yPosition = 20;
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 20;
+      let yPos = 20;
 
-      // Title
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Health Hub Connect - Medical Export', margin, yPosition);
-      yPosition += 15;
+      // Colors
+      const THEME_COLOR: [number, number, number] = [10, 110, 85]; // Dark Teal/Green like the image
+      const TEXT_COLOR: [number, number, number] = [60, 60, 60];
+      const BLACK: [number, number, number] = [0, 0, 0];
 
-      // Date
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, margin, yPosition);
-      yPosition += 20;
+      // Helper functions
+      const addHeader = (isFirstPage = false) => {
+        if (!isFirstPage) return; // Only header on first page for this template style, or repeat if needed
 
-      // Get members to export
+        // Health Vault Header - Centered
+        yPos = 30;
+        pdf.setTextColor(...THEME_COLOR);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(24);
+        pdf.text('HealthVault', pageWidth / 2, yPos, { align: 'center' });
+        // Address/Subtitle
+        yPos += 6;
+        pdf.setFontSize(10);
+        pdf.setTextColor(...TEXT_COLOR);
+        pdf.text('Personal Health Record System • Generated Report', pageWidth / 2, yPos, { align: 'center' });
+
+        // Title: MEDICAL REPORT
+        yPos += 15;
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(18);
+        pdf.setTextColor(...BLACK);
+        pdf.text('MEDICAL REPORT', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 15;
+      };
+
+      const addFooter = () => {
+        const totalPages = (pdf.internal as any).getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(8);
+          pdf.setTextColor(150, 150, 150);
+
+          const footerY = pageHeight - 15;
+          pdf.text('For inquiries, please consult your healthcare provider.', pageWidth / 2, footerY, { align: 'center' });
+          pdf.text(`HealthVault App • Page ${i} of ${totalPages}`, pageWidth / 2, footerY + 5, { align: 'center' });
+        }
+      };
+
+      const checkPageBreak = (heightNeeded: number) => {
+        if (yPos + heightNeeded > pageHeight - 20) {
+          pdf.addPage();
+          yPos = 30; // Reset Y padding for new page
+        }
+      };
+
+      const addSectionTitle = (title: string) => {
+        checkPageBreak(15);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.setTextColor(...THEME_COLOR);
+        pdf.text(title, margin, yPos);
+        yPos += 8;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...TEXT_COLOR);
+        pdf.setFontSize(10);
+      };
+
+      // --- Start Generation ---
+
       const membersToExport = selectedMemberId === 'all'
         ? familyMembers
         : familyMembers.filter(member => member.id === selectedMemberId);
 
-      for (const member of membersToExport) {
-        // Check if we need a new page
-        if (yPosition > pageHeight - 50) {
+      for (let i = 0; i < membersToExport.length; i++) {
+        const member = membersToExport[i];
+
+        if (i > 0) {
           pdf.addPage();
-          yPosition = 20;
+          yPos = 20;
         }
 
-        // Member Header
-        pdf.setFontSize(16);
+        addHeader(true);
+
+        // -- Visit Info (Report Info) --
         pdf.setFont('helvetica', 'bold');
-        pdf.text(`Patient: ${member.name}`, margin, yPosition);
-        yPosition += 10;
+        pdf.setFontSize(11);
+        pdf.setTextColor(...THEME_COLOR);
+        pdf.text('Report Info', margin, yPos);
+        yPos += 8;
 
+        // Two columns for Report Info
+        pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(10);
+        pdf.setTextColor(...BLACK);
+        pdf.text("Generated By:", margin, yPos);
+        pdf.text("Report Date:", margin + 80, yPos);
+
         pdf.setFont('helvetica', 'normal');
-        pdf.text(`Date of Birth: ${new Date(member.dateOfBirth).toLocaleDateString()}`, margin, yPosition);
-        yPosition += 6;
-        pdf.text(`Gender: ${member.gender}`, margin, yPosition);
-        yPosition += 6;
-        pdf.text(`Blood Group: ${member.bloodGroup}`, margin, yPosition);
-        yPosition += 15;
+        pdf.text("HealthVault App", margin + 35, yPos);
+        pdf.text(new Date().toLocaleDateString(), margin + 110, yPos);
+        yPos += 6;
 
-        // Emergency Contacts
-        if (exportOptions.includeEmergencyContacts && member.emergencyContacts.length > 0) {
-          pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Emergency Contacts:', margin, yPosition);
-          yPosition += 8;
+        pdf.setFont('helvetica', 'bold');
+        pdf.text("Type:", margin, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text("Comprehensive Medical Summary", margin + 35, yPos);
+        yPos += 15;
 
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          member.emergencyContacts.forEach(contact => {
-            if (yPosition > pageHeight - 20) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            pdf.text(`${contact.name} (${contact.relationship}): ${contact.phone}`, margin + 5, yPosition);
-            yPosition += 6;
-          });
-          yPosition += 5;
-        }
 
-        // Allergies
-        if (exportOptions.includeAllergies && member.allergies.length > 0) {
-          pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Allergies:', margin, yPosition);
-          yPosition += 8;
+        // -- Patient Info --
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(...THEME_COLOR);
+        pdf.text('Patient Info', margin, yPos);
+        yPos += 8;
 
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          member.allergies.forEach(allergy => {
-            if (yPosition > pageHeight - 20) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            pdf.text(`• ${allergy}`, margin + 5, yPosition);
-            yPosition += 6;
-          });
-          yPosition += 5;
-        }
+        // Grid for Patient Info
+        const leftColX = margin;
+        const rightColX = margin + 80;
+        const colWidth = 35;
 
-        // Chronic Conditions
-        if (exportOptions.includeChronicConditions && member.chronicConditions.length > 0) {
-          pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Chronic Conditions:', margin, yPosition);
-          yPosition += 8;
+        // Row 1
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10);
+        pdf.setTextColor(...BLACK);
+        pdf.text('Full Name:', leftColX, yPos);
+        pdf.text('Birth Date:', rightColX, yPos);
 
-          pdf.setFontSize(10);
-          pdf.setFont('helvetica', 'normal');
-          member.chronicConditions.forEach(condition => {
-            if (yPosition > pageHeight - 20) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-            pdf.text(`• ${condition}`, margin + 5, yPosition);
-            yPosition += 6;
-          });
-          yPosition += 10;
-        }
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(member.name, leftColX + colWidth, yPos);
+        pdf.text(new Date(member.dateOfBirth).toLocaleDateString(), rightColX + colWidth, yPos);
+        yPos += 6;
 
-        // Vitals
+        // Row 2
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Gender:', leftColX, yPos);
+        pdf.text('Blood Grp:', rightColX, yPos);
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(member.gender, leftColX + colWidth, yPos);
+        pdf.text(member.bloodGroup || 'N/A', rightColX + colWidth, yPos);
+        yPos += 6;
+
+        // Row 3
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Age:', leftColX, yPos);
+
+        // Calculate age
+        const age = new Date().getFullYear() - new Date(member.dateOfBirth).getFullYear();
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`${age} years`, leftColX + colWidth, yPos);
+        yPos += 15;
+
+
+        // -- Sections Based on Data --
+
+        // 1. Vital Signs (Assessment-like structure)
         if (exportOptions.includeVitals) {
-          const memberVitals = (vitals || []).filter(vital => vital.memberId === member.id);
+          addSectionTitle('Latest Vital Signs');
+          const memberVitals = vitals.filter(v => v.memberId === member.id);
+
           if (memberVitals.length > 0) {
-            if (yPosition > pageHeight - 30) {
-              pdf.addPage();
-              yPosition = 20;
-            }
+            // Get latest of each type
+            const latestVitals = Object.values(
+              memberVitals.reduce((acc, curr) => {
+                if (!acc[curr.type] || new Date(curr.recordedAt) > new Date(acc[curr.type].recordedAt)) {
+                  acc[curr.type] = curr;
+                }
+                return acc;
+              }, {} as Record<string, VitalReading>)
+            );
 
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Vital Signs:', margin, yPosition);
-            yPosition += 8;
-
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            memberVitals.slice(-10).forEach(vital => { // Last 10 readings
-              if (yPosition > pageHeight - 20) {
-                pdf.addPage();
-                yPosition = 20;
-              }
-              const value = vital.secondaryValue
-                ? `${vital.value}/${vital.secondaryValue} ${vital.unit}`
-                : `${vital.value} ${vital.unit}`;
-              pdf.text(`${vital.type.replace('_', ' ').toUpperCase()}: ${value} (${new Date(vital.recordedAt).toLocaleDateString()})`, margin + 5, yPosition);
-              yPosition += 6;
+            let vitalText = "";
+            latestVitals.forEach(v => {
+              const val = v.secondaryValue ? `${v.value}/${v.secondaryValue}` : `${v.value}`;
+              vitalText += `• ${v.type.replace('_', ' ').toUpperCase()}: ${val} ${v.unit} (${v.status})\n`;
             });
-            yPosition += 5;
+
+            const splitVitals = pdf.splitTextToSize(vitalText, pageWidth - (margin * 2));
+            checkPageBreak(splitVitals.length * 5);
+            pdf.text(splitVitals, margin, yPos);
+            yPos += (splitVitals.length * 5) + 5;
+          } else {
+            pdf.text('No vital sign records found.', margin, yPos);
+            yPos += 10;
           }
         }
 
-        // Medical Reports
-        if (exportOptions.includeReports) {
-          const memberReports = (reports || []).filter(report => report.memberId === member.id);
-          if (memberReports.length > 0) {
-            if (yPosition > pageHeight - 30) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Medical Reports:', margin, yPosition);
-            yPosition += 8;
-
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            memberReports.forEach(report => {
-              if (yPosition > pageHeight - 25) {
-                pdf.addPage();
-                yPosition = 20;
-              }
-              pdf.text(`${report.title} (${report.type}) - ${new Date(report.date).toLocaleDateString()}`, margin + 5, yPosition);
-              yPosition += 6;
-              if (report.notes) {
-                pdf.text(`Notes: ${report.notes}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              if (report.tags.length > 0) {
-                pdf.text(`Tags: ${report.tags.join(', ')}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              yPosition += 3;
-            });
-            yPosition += 5;
-          }
-        }
-
-        // Doctor Notes
+        // 2. Doctor Notes (Diagnosis-like)
         if (exportOptions.includeNotes) {
-          const memberNotes = (doctorNotes || []).filter(note => note.memberId === member.id);
+          addSectionTitle('Doctor Notes & Diagnosis');
+          const memberNotes = doctorNotes.filter(n => n.memberId === member.id);
+
           if (memberNotes.length > 0) {
-            if (yPosition > pageHeight - 30) {
-              pdf.addPage();
-              yPosition = 20;
-            }
-
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Doctor Notes:', margin, yPosition);
-            yPosition += 8;
-
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
             memberNotes.forEach(note => {
-              if (yPosition > pageHeight - 40) {
-                pdf.addPage();
-                yPosition = 20;
-              }
-              pdf.text(`Dr. ${note.doctorName} (${note.specialty || 'General'}) - ${new Date(note.date).toLocaleDateString()}`, margin + 5, yPosition);
-              yPosition += 6;
-              pdf.text(`Content: ${note.content}`, margin + 10, yPosition);
-              yPosition += 6;
-              if (note.prescriptions && note.prescriptions.length > 0) {
-                pdf.text(`Prescriptions: ${note.prescriptions.join(', ')}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              if (note.followUpDate) {
-                pdf.text(`Follow-up: ${new Date(note.followUpDate).toLocaleDateString()}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              yPosition += 5;
+              checkPageBreak(20);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text(`${note.date} - ${note.doctorName}`, margin, yPos);
+              yPos += 5;
+              pdf.setFont('helvetica', 'normal');
+              const splitNote = pdf.splitTextToSize(note.content, pageWidth - (margin * 2));
+              checkPageBreak(splitNote.length * 5);
+              pdf.text(splitNote, margin, yPos);
+              yPos += (splitNote.length * 5) + 5;
             });
-            yPosition += 5;
+          } else {
+            pdf.text('No doctor notes or diagnosis records found.', margin, yPos);
+            yPos += 10;
           }
         }
 
-        // Medications
+        // 3. Medications (Prescription-like)
         if (exportOptions.includeMedications) {
-          const memberMedications = (medications || []).filter(med => med.memberId === member.id);
-          if (memberMedications.length > 0) {
-            if (yPosition > pageHeight - 30) {
-              pdf.addPage();
-              yPosition = 20;
-            }
+          addSectionTitle('Active Medications');
+          const memberMeds = medications.filter(m => m.memberId === member.id && m.isActive);
 
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Medications:', margin, yPosition);
-            yPosition += 8;
-
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            memberMedications.forEach(med => {
-              if (yPosition > pageHeight - 20) {
-                pdf.addPage();
-                yPosition = 20;
-              }
-              pdf.text(`${med.name} - ${med.dosage} (${med.frequency})`, margin + 5, yPosition);
-              yPosition += 6;
-              pdf.text(`Times: ${med.times.join(', ')} | Started: ${new Date(med.startDate).toLocaleDateString()}`, margin + 10, yPosition);
-              yPosition += 6;
-              if (med.endDate) {
-                pdf.text(`End Date: ${new Date(med.endDate).toLocaleDateString()}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              if (med.notes) {
-                pdf.text(`Notes: ${med.notes}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              yPosition += 3;
+          if (memberMeds.length > 0) {
+            let medsText = "The patient is currently prescribed the following medications:\n\n";
+            memberMeds.forEach(m => {
+              medsText += `• ${m.name} (${m.dosage}) - ${m.frequency}\n`;
             });
-            yPosition += 5;
+
+            const splitMeds = pdf.splitTextToSize(medsText, pageWidth - (margin * 2));
+            checkPageBreak(splitMeds.length * 5);
+            pdf.text(splitMeds, margin, yPos);
+            yPos += (splitMeds.length * 5) + 5;
+          } else {
+            const noMedsText = "No active medication prescriptions found at this time.";
+            pdf.text(noMedsText, margin, yPos);
+            yPos += 10;
           }
         }
 
-        // Symptoms
-        if (exportOptions.includeSymptoms) {
-          const memberSymptoms = (symptoms || []).filter(symptom => symptom.memberId === member.id);
-          if (memberSymptoms.length > 0) {
-            if (yPosition > pageHeight - 30) {
-              pdf.addPage();
-              yPosition = 20;
-            }
+        // 4. Reports Summary
+        if (exportOptions.includeReports) {
+          addSectionTitle('Medical Reports History');
+          const memberReports = reports.filter(r => r.memberId === member.id);
 
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Symptoms:', margin, yPosition);
-            yPosition += 8;
-
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            memberSymptoms.slice(-20).forEach(symptom => { // Last 20 symptoms
-              if (yPosition > pageHeight - 20) {
-                pdf.addPage();
-                yPosition = 20;
-              }
-              pdf.text(`${symptom.name} (Severity: ${symptom.severity}/5) - ${new Date(symptom.recordedAt).toLocaleDateString()}`, margin + 5, yPosition);
-              yPosition += 6;
-              if (symptom.notes) {
-                pdf.text(`Notes: ${symptom.notes}`, margin + 10, yPosition);
-                yPosition += 6;
-              }
-              yPosition += 3;
+          if (memberReports.length > 0) {
+            memberReports.slice(0, 10).forEach(r => {
+              checkPageBreak(6);
+              pdf.text(`• ${r.date}: ${r.title} (${r.type})`, margin, yPos);
+              yPos += 6;
             });
-            yPosition += 10;
+          } else {
+            pdf.text("No medical reports on file.", margin, yPos);
+            yPos += 10;
           }
         }
 
-        // Add separator between members
-        if (membersToExport.indexOf(member) < membersToExport.length - 1) {
-          pdf.addPage();
-          yPosition = 20;
+        // 5. Allergies & Conditions
+        if (exportOptions.includeAllergies || exportOptions.includeChronicConditions) {
+          addSectionTitle('Medical Alerts');
+
+          if (exportOptions.includeAllergies && member.allergies.length > 0) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.text("Allergies:", margin, yPos);
+            pdf.setFont('helvetica', 'normal');
+            const allergyText = member.allergies.join(", ");
+            const splitAllergy = pdf.splitTextToSize(allergyText, pageWidth - (margin * 2) - 30);
+            pdf.text(splitAllergy, margin + 25, yPos);
+            yPos += (splitAllergy.length * 5) + 5;
+          }
+
+          if (exportOptions.includeChronicConditions && member.chronicConditions.length > 0) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.text("Conditions:", margin, yPos);
+            pdf.setFont('helvetica', 'normal');
+            const conditionText = member.chronicConditions.join(", ");
+            const splitCond = pdf.splitTextToSize(conditionText, pageWidth - (margin * 2) - 30);
+            pdf.text(splitCond, margin + 25, yPos);
+            yPos += (splitCond.length * 5) + 5;
+          }
         }
       }
 
-      // Save the PDF
-      const fileName = selectedMemberId === 'all'
-        ? `health-export-all-${new Date().toISOString().split('T')[0]}.pdf`
-        : `health-export-${familyMembers.find(m => m.id === selectedMemberId)?.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      // Add footer to all pages
+      addFooter();
 
+      // Save the PDF
+      const titleName = membersToExport.length === 1 ? membersToExport[0].name.replace(/\s+/g, '-') : 'Family';
+      const fileName = `HealthVault-Report-${titleName}-${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
-      toast.success('Export completed successfully!');
+
+      toast.success('Medical report generated successfully!');
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to generate PDF. Please try again.');
@@ -369,8 +392,6 @@ const Export: React.FC = () => {
       setIsExporting(false);
     }
   };
-
-  const selectedMember = selectedMemberId === 'all' ? null : familyMembers.find(m => m.id === selectedMemberId);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -429,6 +450,19 @@ const Export: React.FC = () => {
                   Medical Reports
                 </label>
               </div>
+
+              {/* Enabled option for server-side PDF merging */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="reportFiles"
+                  checked={exportOptions.includeReportFiles}
+                  onCheckedChange={() => handleExportOptionChange('includeReportFiles' as any)}
+                />
+                <label htmlFor="reportFiles" className="text-sm font-medium">
+                  Include original report PDFs (Server Only)
+                </label>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="notes"
@@ -503,37 +537,12 @@ const Export: React.FC = () => {
               </Badge>
               {exportOptions.includeVitals && (
                 <Badge variant="outline">
-                  {selectedMemberId === 'all'
-                    ? (vitals?.length || 0)
-                    : (vitals?.filter(v => v.memberId === selectedMemberId).length || 0)} Vitals
-                </Badge>
-              )}
-              {exportOptions.includeReports && (
-                <Badge variant="outline">
-                  {selectedMemberId === 'all'
-                    ? (reports?.length || 0)
-                    : (reports?.filter(r => r.memberId === selectedMemberId).length || 0)} Reports
-                </Badge>
-              )}
-              {exportOptions.includeNotes && (
-                <Badge variant="outline">
-                  {selectedMemberId === 'all'
-                    ? (doctorNotes?.length || 0)
-                    : (doctorNotes?.filter(n => n.memberId === selectedMemberId).length || 0)} Notes
+                  Vitals Included
                 </Badge>
               )}
               {exportOptions.includeMedications && (
                 <Badge variant="outline">
-                  {selectedMemberId === 'all'
-                    ? (medications?.length || 0)
-                    : (medications?.filter(m => m.memberId === selectedMemberId).length || 0)} Medications
-                </Badge>
-              )}
-              {exportOptions.includeSymptoms && (
-                <Badge variant="outline">
-                  {selectedMemberId === 'all'
-                    ? (symptoms?.length || 0)
-                    : (symptoms?.filter(s => s.memberId === selectedMemberId).length || 0)} Symptoms
+                  Medications Included
                 </Badge>
               )}
             </div>
@@ -549,12 +558,12 @@ const Export: React.FC = () => {
             {isExporting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating PDF...
+                Generating Report...
               </>
             ) : (
               <>
                 <Download className="mr-2 h-4 w-4" />
-                Export to PDF
+                Download Medical Report
               </>
             )}
           </Button>

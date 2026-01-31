@@ -94,7 +94,7 @@ async function createSummaryPDF({ memberName, reportTitle, reportDate, parsedDat
     doc.moveDown(0.5);
 
     // Important vitals
-    const keysToShow = ['blood_pressure','glucose','hemoglobin','ldl','bmi','weight'];
+    const keysToShow = ['blood_pressure', 'glucose', 'hemoglobin', 'ldl', 'bmi', 'weight'];
     keysToShow.forEach(k => {
       if (parsedData && parsedData[k]) {
         const v = parsedData[k];
@@ -126,19 +126,20 @@ async function createSummaryPDF({ memberName, reportTitle, reportDate, parsedDat
   });
 }
 
-async function generateSummaryAndPDF({ report, member }) {
+async function generateSummaryAndPDF({ report, member, summaryText }) {
   if (!report) throw new Error('report is required');
 
   const parsedData = report.parsedData || {};
   const inferred = inferConditions(parsedData);
   const alertLevel = computeAlertLevel(inferred.flags);
 
-  // Construct a short summary text based on found conditions
-  let summaryText = '';
-  if (inferred.conditions.length > 0) {
-    summaryText = `The report indicates the following possible conditions: ${inferred.conditions.join('; ')}. Alert level: ${alertLevel.toUpperCase()}. Please consult a healthcare professional for confirmation.`;
-  } else {
-    summaryText = 'No major abnormalities detected in the key parameters parsed from the report.';
+  // Construct a short summary text if not provided
+  if (!summaryText) {
+    if (inferred.conditions.length > 0) {
+      summaryText = `The report indicates the following possible conditions: ${inferred.conditions.join('; ')}. Alert level: ${alertLevel.toUpperCase()}. Please consult a healthcare professional for confirmation.`;
+    } else {
+      summaryText = 'No major abnormalities detected in the key parameters parsed from the report.';
+    }
   }
 
   // Build output path

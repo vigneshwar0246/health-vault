@@ -19,8 +19,9 @@ import Reports from "./pages/Reports";
 import DoctorNotes from "./pages/DoctorNotes";
 import Appointments from "./pages/Appointments";
 import Reminders from "./pages/Reminders";
-import Emergency from "./pages/Emergency";
+
 import ActivityLogs from "./pages/ActivityLogs";
+import Chatbot from "./pages/Chatbot";
 import NotFound from "./pages/NotFound";
 
 // Layout
@@ -31,7 +32,7 @@ const queryClient = new QueryClient();
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,26 +40,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 // Public route - redirect to dashboard if logged in
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return null;
   }
-  
+
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -77,32 +78,34 @@ const App = () => (
         <FamilyProvider>
           <VitalsProvider>
             <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
-                <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-                <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-                <Route path="/about" element={<About />} />
-                
-                {/* Protected routes with app layout */}
-                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/doctor-notes" element={<DoctorNotes />} />
-                  <Route path="/appointments" element={<Appointments />} />
-                  <Route path="/reminders" element={<Reminders />} />
-                  <Route path="/emergency" element={<Emergency />} />
-                  <Route path="/activity" element={<ActivityLogs />} />
-                </Route>
-                
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
+                  <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                  <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+                  <Route path="/about" element={<About />} />
+
+                  {/* Protected routes with app layout */}
+                  <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/doctor-notes" element={<DoctorNotes />} />
+                    <Route path="/appointments" element={<Appointments />} />
+                    <Route path="/reminders" element={<Reminders />} />
+
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/chatbot" element={<Chatbot />} />
+                    <Route path="/activity" element={<ActivityLogs />} />
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
           </VitalsProvider>
         </FamilyProvider>
       </AuthProvider>

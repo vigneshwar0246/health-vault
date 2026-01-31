@@ -87,7 +87,7 @@ import {
   Stethoscope,
   Calendar,
   Bell,
-  AlertTriangle,
+
   Download,
   Settings,
   Activity,
@@ -103,7 +103,7 @@ const navItems = [
   { path: '/doctor-notes', label: 'Doctor Notes', icon: Stethoscope },
   { path: '/appointments', label: 'Appointments', icon: Calendar },
   { path: '/reminders', label: 'Reminders & Symptoms', icon: Bell },
-  { path: '/emergency', label: 'Emergency', icon: AlertTriangle },
+
   { path: '/export', label: 'Export Data', icon: Download },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/activity', label: 'Activity Logs', icon: Activity },
@@ -119,7 +119,7 @@ function MobileNavItems({ onItemClick, onSettingsOpen, onExportOpen }: { onItemC
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
-          
+
           if (item.path === '/settings') {
             return (
               <li key={item.path}>
@@ -137,7 +137,7 @@ function MobileNavItems({ onItemClick, onSettingsOpen, onExportOpen }: { onItemC
               </li>
             );
           }
-          
+
           if (item.path === '/export') {
             return (
               <li key={item.path}>
@@ -155,7 +155,7 @@ function MobileNavItems({ onItemClick, onSettingsOpen, onExportOpen }: { onItemC
               </li>
             );
           }
-          
+
           return (
             <li key={item.path}>
               <RouterLink
@@ -168,14 +168,14 @@ function MobileNavItems({ onItemClick, onSettingsOpen, onExportOpen }: { onItemC
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <Icon className={cn('h-5 w-5 shrink-0', item.path === '/emergency' && 'text-destructive')} />
+                <Icon className={cn('h-5 w-5 shrink-0')} />
                 <span>{item.label}</span>
               </RouterLink>
             </li>
           );
         })}
       </ul>
-      
+
       <div className="mt-auto pt-4 border-t border-sidebar-border">
         <Button
           variant="ghost"

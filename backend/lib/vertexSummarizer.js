@@ -1,18 +1,54 @@
 const { GoogleAuth } = require('google-auth-library');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-function _getFetch() {
-  // Use node-fetch directly so tests can mock it; avoid using global.fetch which may perform real network calls in some Node versions
-  return require('node-fetch');
-}
+// Use global fetch (Node 18+) or a local require if needed for old versions
+const getFetch = () => {
+  if (typeof fetch !== 'undefined') return fetch;
+  try {
+    return require('node-fetch');
+  } catch (err) {
+    throw new Error('fetch is not available. Please use Node 18+ or install node-fetch.');
+  }
+};
 
-// Simple Vertex AI Generative text call using REST and service account auth
+// Unified generation function: supports Gemini API Key (preferred) or Vertex AI (legacy/fallback)
 async function generateWithVertex(prompt, options = {}) {
+  // 1. Try Gemini API Key first
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const parts = [{ text: prompt }];
+
+      // If a file is provided (e.g., from multer), add it as an inlineData part
+      if (options.file) {
+        parts.push({
+          inlineData: {
+            mimeType: options.file.mimeType,
+            data: options.file.data // base64 string
+          }
+        });
+      }
+
+      const result = await model.generateContent(parts);
+      const response = await result.response;
+      const text = response.text();
+      return text;
+    } catch (err) {
+      console.error('Gemini API generation failed:', err);
+      throw new Error(`Gemini API Error: ${err.message}`);
+    }
+  }
+
+  // 2. Fallback to Vertex AI if no Gemini Key
   const project = process.env.GCP_PROJECT_ID;
   const location = process.env.VERTEX_LOCATION || 'us-central1';
   const model = process.env.VERTEX_MODEL; // e.g., 'text-bison@001' or 'chat-bison@001'
 
   if (!project || !model) {
-    throw new Error('Vertex configuration missing (GCP_PROJECT_ID or VERTEX_MODEL)');
+    throw new Error('Configuration missing: Provide GEMINI_API_KEY or (GCP_PROJECT_ID and VERTEX_MODEL)');
   }
 
   // Build endpoint
@@ -31,7 +67,7 @@ async function generateWithVertex(prompt, options = {}) {
     }
   };
 
-  const fetch = _getFetch();
+  const fetch = getFetch();
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -56,6 +92,23 @@ async function generateWithVertex(prompt, options = {}) {
 }
 
 async function validateVertex() {
+  // Validate Gemini if Key is present
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const modelName = process.env.GEMINI_MODEL || 'gemini-pro';
+      const model = genAI.getGenerativeModel({ model: modelName });
+      // Simple generation to test
+      const result = await model.generateContent("Hello");
+      await result.response;
+      return { ok: true, modelAvailable: true, provider: 'gemini' };
+    } catch (err) {
+      console.error("Gemini validation failed:", err);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  // Fallback to Vertex validation
   const project = process.env.GCP_PROJECT_ID;
   const location = process.env.VERTEX_LOCATION || 'us-central1';
   const model = process.env.VERTEX_MODEL;
@@ -70,16 +123,16 @@ async function validateVertex() {
   // If model specified, verify model metadata endpoint is reachable
   if (model) {
     const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}`;
-    const fetch = _getFetch();
+    const fetch = getFetch();
     const res = await fetch(url, { method: 'GET', headers: { Authorization: `Bearer ${token.token || token}` } });
     if (!res.ok) {
       const txt = await res.text();
       throw new Error(`Vertex model check failed: ${res.status} ${txt.slice(0, 200)}`);
     }
-    return { ok: true, modelAvailable: true };
+    return { ok: true, modelAvailable: true, provider: 'vertex' };
   }
 
-  return { ok: true, modelAvailable: false };
+  return { ok: true, modelAvailable: false, provider: 'vertex' };
 }
 
 module.exports = { generateWithVertex, validateVertex };

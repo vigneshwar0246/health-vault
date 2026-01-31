@@ -17,7 +17,7 @@ import {
   Wind,
   Scale,
   Plus,
-  AlertTriangle,
+
   Calendar,
   FileText,
 } from 'lucide-react';
@@ -136,10 +136,7 @@ export default function Dashboard() {
             {activeMember ? `Viewing ${activeMember.name}'s health data` : 'Select a family member'}
           </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate('/emergency')}>
-          <AlertTriangle className="h-4 w-4" />
-          Emergency Info
-        </Button>
+
       </div>
 
       {/* Vitals Grid */}
@@ -232,10 +229,10 @@ export default function Dashboard() {
           {vitalCards.map((vital) => {
             const latestReading = getLatestReading(vital.type);
             const config = VITAL_CONFIGS[vital.type];
-            
+
             let displayValue = '--';
             let status = 'normal';
-            
+
             if (latestReading) {
               if (config.hasSecondaryValue && latestReading.secondaryValue !== undefined) {
                 displayValue = `${latestReading.value}/${latestReading.secondaryValue}`;
@@ -277,7 +274,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {activeMember ? 
+              {activeMember ?
                 `${storage.getData().appointments.filter(a => a.memberId === activeMember.id && a.status === 'upcoming').length} upcoming` :
                 'Select a family member'
               }
@@ -294,7 +291,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {activeMember ? 
+              {activeMember ?
                 `${storage.getData().reports.filter(r => r.memberId === activeMember.id).length} reports` :
                 'Select a family member'
               }
@@ -311,7 +308,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {activeMember ? 
+              {activeMember ?
                 `${storage.getData().medications.filter(m => m.memberId === activeMember.id && m.isActive).length} active` :
                 'Select a family member'
               }
