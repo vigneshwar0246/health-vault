@@ -1,0 +1,6 @@
+# Favicon Placeholder
+# Replace this file with your actual favicon.ico file
+# You can generate favicons at: https://favicon.io/favicon-generator/
+# Or use online tools like: https://www.favicon-generator.org/
+# Recommended sizes: 16x16, 32x32, 48x48 pixels
+# Save as favicon.ico and place in this public/ directory

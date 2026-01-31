@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* HealthVault Design System
+   Modern & Minimal Healthcare Theme
+   All colors in HSL format
+*/
+
+@layer base {
+  :root {
+    /* Core Brand Colors */
+    --background: 210 20% 98%;
+    --foreground: 220 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+
+    /* Primary - Healthcare Blue */
+    --primary: 210 90% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft Gray-Blue */
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 220 25% 20%;
+
+    /* Muted - Subtle backgrounds */
+    --muted: 210 15% 95%;
+    --muted-foreground: 220 10% 45%;
+
+    /* Accent - Teal for highlights */
+    --accent: 175 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Error/Critical Red */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Health Status Colors */
+    --health-normal: 145 65% 42%;
+    --health-normal-foreground: 0 0% 100%;
+    --health-warning: 38 95% 50%;
+    --health-warning-foreground: 0 0% 10%;
+    --health-critical: 0 75% 55%;
+    --health-critical-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 210 90% 45%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar - Clean navigation */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 25% 25%;
+    --sidebar-primary: 210 90% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 220 25% 15%;
+    --sidebar-border: 210 20% 92%;
+    --sidebar-ring: 210 90% 45%;
+
+    /* Chart Colors for vitals */
+    --chart-1: 210 90% 45%;
+    --chart-2: 175 70% 40%;
+    --chart-3: 145 65% 42%;
+    --chart-4: 38 95% 50%;
+    --chart-5: 280 65% 55%;
+    --chart-6: 0 75% 55%;
+  }
+
+  .dark {
+    /* Dark Mode - Calm, low-eye-strain */
+    --background: 220 25% 8%;
+    --foreground: 210 20% 95%;
+
+    --card: 220 25% 12%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 220 25% 12%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Primary - Brighter blue for dark mode */
+    --primary: 210 85% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary */
+    --secondary: 220 20% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    /* Muted */
+    --muted: 220 20% 16%;
+    --muted-foreground: 210 15% 60%;
+
+    /* Accent - Teal */
+    --accent: 175 65% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Health Status Colors - Adjusted for dark mode */
+    --health-normal: 145 60% 45%;
+    --health-normal-foreground: 0 0% 100%;
+    --health-warning: 38 90% 55%;
+    --health-warning-foreground: 0 0% 10%;
+    --health-critical: 0 70% 50%;
+    --health-critical-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 210 85% 55%;
+
+    /* Sidebar */
+    --sidebar-background: 220 25% 10%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 210 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 15%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 210 85% 55%;
+
+    /* Chart Colors */
+    --chart-1: 210 85% 55%;
+    --chart-2: 175 65% 45%;
+    --chart-3: 145 60% 45%;
+    --chart-4: 38 90% 55%;
+    --chart-5: 280 60% 60%;
+    --chart-6: 0 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted/50;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .health-card-normal {
+    @apply border-l-4 border-l-[hsl(var(--health-normal))];
+  }
+
+  .health-card-warning {
+    @apply border-l-4 border-l-[hsl(var(--health-warning))];
+  }
+
+  .health-card-critical {
+    @apply border-l-4 border-l-[hsl(var(--health-critical))];
+  }
+
+  .glass-effect {
+    @apply backdrop-blur-md bg-background/80;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  }
+}
